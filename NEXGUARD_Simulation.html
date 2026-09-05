@@ -1,0 +1,1775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NEXGUARD | Autonomous Multi-Sensor Security & Infrastructure Intelligence System</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Three.js & OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #030712;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            user-select: none;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .custom-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.4);
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(16, 185, 129, 0.4);
+            border-radius: 2px;
+        }
+        .drag-handle {
+            cursor: grab;
+        }
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+        .glass-panel {
+            background: rgba(10, 15, 28, 0.92);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .glow-emerald {
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.35);
+        }
+        .glow-amber {
+            box-shadow: 0 0 25px rgba(245, 158, 11, 0.4);
+        }
+        .glow-rose {
+            box-shadow: 0 0 25px rgba(244, 63, 94, 0.45);
+        }
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(1000%); }
+        }
+        .scanline-effect::after {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 2px;
+            background: rgba(16, 185, 129, 0.25);
+            animation: scanline 5s linear infinite;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="text-slate-100 scanline-effect">
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 bg-slate-950 z-50 flex flex-col items-center justify-center transition-opacity duration-700">
+        <div class="relative w-28 h-28 flex items-center justify-center mb-6">
+            <div class="absolute inset-0 border-4 border-emerald-500/10 rounded-full"></div>
+            <div class="absolute inset-0 border-4 border-t-emerald-500 rounded-full animate-spin"></div>
+            <div class="absolute inset-3 border-2 border-b-cyan-400 rounded-full animate-spin" style="animation-direction: reverse; animation-duration: 2s;"></div>
+            <i class="fa-solid fa-shield-halved text-3xl text-emerald-400 animate-pulse"></i>
+        </div>
+        <h1 class="text-white font-extrabold text-xl tracking-wider uppercase mb-1">NEXGUARD AI</h1>
+        <p class="text-emerald-400/80 text-xs font-mono tracking-widest mb-4">NEXGUARD DIGITAL TWIN v4.5</p>
+        <p id="loading-status" class="text-slate-400 text-xs font-mono">Building PBR World & Military Complex...</p>
+        <div class="w-64 h-1.5 bg-slate-800 rounded-full overflow-hidden mt-4">
+            <div id="loading-bar" class="h-full bg-gradient-to-r from-emerald-500 via-cyan-400 to-emerald-400 transition-all duration-300" style="width: 15%;"></div>
+        </div>
+    </div>
+
+    <!-- 3D Canvas Container -->
+    <div id="canvas-container" class="w-full h-full absolute inset-0"></div>
+
+    <!-- TOP HEADER BRANDING OVERLAY -->
+    <div class="absolute top-4 left-4 z-20 pointer-events-none flex flex-wrap items-center gap-3">
+        <div class="glass-panel px-4 py-2.5 rounded-2xl pointer-events-auto flex items-center gap-3 shadow-2xl border border-emerald-500/30">
+            <div class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 glow-emerald">
+                <i class="fa-solid fa-microchip text-lg animate-pulse"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-xs md:text-sm font-extrabold tracking-wider text-white uppercase">NEXGUARD AI</h1>
+                    <span class="text-[9px] bg-emerald-950/80 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/40 font-mono font-bold">REALISTIC 3D v4.5</span>
+                </div>
+                <p class="text-[9px] text-slate-400 font-medium tracking-tight">Autonomous Multi-Sensor Security & Infrastructure Intelligence System</p>
+            </div>
+        </div>
+
+        <!-- Global Quick Controls -->
+        <div class="glass-panel px-3 py-1.5 rounded-xl pointer-events-auto flex items-center gap-2 text-[10px] font-mono border border-slate-700/80 shadow-lg">
+            <button id="btn-voice-toggle" onclick="toggleVoiceOutput()" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition-all flex items-center gap-1.5 border border-emerald-500/30">
+                <i id="icon-voice" class="fa-solid fa-volume-high"></i>
+                <span id="lbl-voice">VOICE: ON</span>
+            </button>
+
+            <button id="btn-autoloop-toggle" onclick="toggleAutoLoop()" class="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 transition-all flex items-center gap-1.5 border border-cyan-500/30">
+                <i class="fa-solid fa-robot"></i>
+                <span id="lbl-autoloop">AUTO EVENTS: ON</span>
+            </button>
+
+            <button id="btn-followcam-toggle" onclick="toggleFollowCam()" class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all flex items-center gap-1.5 border border-slate-700">
+                <i id="icon-followcam" class="fa-solid fa-camera-rotate text-emerald-400"></i>
+                <span id="lbl-followcam">FOLLOW CAM: ON</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- MULTI-SENSOR DETECTION GRAPHIC POPUP -->
+    <div id="sensor-fusion-popup" class="hidden fixed top-20 left-1/2 -translate-x-1/2 z-40 w-80 glass-panel rounded-2xl p-4 border border-cyan-500/40 shadow-2xl transition-all duration-500 transform scale-95 opacity-0">
+        <div class="flex items-center justify-between pb-2 border-b border-cyan-500/20 mb-3">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-network-wired text-cyan-400 text-xs animate-pulse"></i>
+                <span class="text-xs font-bold font-mono tracking-wider text-cyan-200">NEXGUARD FUSION ENGINE</span>
+            </div>
+            <span id="fusion-status-tag" class="text-[9px] font-mono px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 animate-pulse">ANALYZING...</span>
+        </div>
+
+        <!-- Sensor Matrix Checklist -->
+        <div class="space-y-1.5 font-mono text-[11px] mb-3" id="fusion-checklist">
+            <!-- Dynamic Injection -->
+        </div>
+
+        <div class="pt-2 border-t border-white/10 flex items-center justify-between text-[10px] font-mono">
+            <span class="text-slate-400">CORRELATED SOURCES: <strong id="fusion-count" class="text-cyan-300">0</strong></span>
+            <span class="text-slate-400">CONFIDENCE: <strong id="fusion-confidence" class="text-emerald-400">0%</strong></span>
+        </div>
+    </div>
+
+    <!-- POLISHED EVENT NOTIFICATION POPUP -->
+    <div id="event-alert-popup" class="hidden fixed top-20 left-4 z-30 w-80 glass-panel rounded-2xl p-4 border shadow-2xl transition-all duration-300 transform -translate-y-4 opacity-0">
+        <div class="flex items-center justify-between pb-2 border-b border-white/10 mb-2.5">
+            <div class="flex items-center gap-2">
+                <i id="event-alert-icon" class="fa-solid fa-triangle-exclamation text-rose-400 animate-bounce"></i>
+                <h2 id="event-alert-title" class="text-xs font-black uppercase tracking-wider text-rose-300">INTRUSION DETECTED</h2>
+            </div>
+            <span id="event-alert-badge" class="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">CRITICAL</span>
+        </div>
+
+        <div class="space-y-1.5 text-[10px] font-mono">
+            <div class="flex justify-between items-center bg-slate-950/60 p-2 rounded-lg border border-white/5">
+                <span class="text-slate-400">LOCATION:</span>
+                <span id="event-alert-location" class="text-white font-bold">North Perimeter</span>
+            </div>
+
+            <div class="flex justify-between items-center bg-slate-950/60 p-2 rounded-lg border border-white/5">
+                <span class="text-slate-400">DETECTED BY:</span>
+                <span id="event-alert-sensors" class="text-cyan-300 font-bold">PIR + Camera + Thermal</span>
+            </div>
+
+            <div class="flex justify-between items-center bg-slate-950/60 p-2 rounded-lg border border-white/5">
+                <span class="text-slate-400">CONFIDENCE:</span>
+                <span id="event-alert-confidence" class="text-emerald-400 font-bold">92%</span>
+            </div>
+
+            <div class="flex justify-between items-center bg-slate-950/60 p-2 rounded-lg border border-white/5">
+                <span class="text-slate-400">SYSTEM STATUS:</span>
+                <span id="event-alert-status" class="text-rose-400 font-bold animate-pulse">ALARM ACTIVATED</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT SLIDEABLE TELEMETRY & CONTROL ROOM OUTPUT PANEL -->
+    <div id="telemetry-box" class="fixed top-20 right-4 z-20 w-80 glass-panel rounded-2xl p-4 shadow-2xl border border-slate-700/70 transition-all duration-300 transform translate-x-0 max-h-[85vh] flex flex-col">
+        <!-- Close / Minimize Toggle Button -->
+        <button onclick="toggleTelemetryPanel()" class="absolute left-[-28px] top-1/2 -translate-y-1/2 w-7 h-14 glass-panel text-slate-400 hover:text-emerald-400 rounded-l-xl border-r-0 flex items-center justify-center cursor-pointer transition-colors">
+            <i id="telemetry-toggle-icon" class="fa-solid fa-chevron-right text-xs"></i>
+        </button>
+
+        <div class="flex items-center justify-between pb-2.5 border-b border-white/10 mb-3">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-tower-observation text-emerald-400 text-xs"></i>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-white">Live Telemetry & Logs</h3>
+            </div>
+            <span id="system-badge" class="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse">AUTONOMOUS: ACTIVE</span>
+        </div>
+
+        <div class="space-y-2 text-[10px] font-mono mb-3">
+            <div class="flex justify-between items-center bg-slate-900/60 p-2 rounded-lg border border-white/5">
+                <span class="text-slate-400">CURRENT ZONE:</span>
+                <span id="telemetry-zone" class="text-white font-bold">Command HQ</span>
+            </div>
+
+            <div class="flex justify-between items-center bg-slate-900/60 p-2 rounded-lg border border-white/5">
+                <span class="text-slate-400">SYSTEM STATE:</span>
+                <span id="telemetry-status" class="text-emerald-400 font-bold">NORMAL MONITORING</span>
+            </div>
+
+            <div class="flex justify-between items-center bg-slate-900/60 p-2 rounded-lg border border-white/5">
+                <span class="text-slate-400">ACTIVE INCIDENT:</span>
+                <span id="telemetry-event" class="text-slate-300 font-medium">None</span>
+            </div>
+
+            <div class="flex justify-between items-center bg-slate-900/60 p-2 rounded-lg border border-white/5">
+                <span class="text-slate-400">SENSOR MATRIX:</span>
+                <span id="telemetry-sensors" class="text-cyan-400 font-bold">48 / 48 ONLINE</span>
+            </div>
+        </div>
+
+        <!-- CONTROL ROOM ANNOUNCEMENT FEED -->
+        <div class="mb-3 flex-1 flex flex-col min-h-0">
+            <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[9px] font-mono font-extrabold uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
+                    <i class="fa-solid fa-bullhorn text-cyan-400"></i>
+                    NEXGUARD Control Room Feed
+                </span>
+                <span class="text-[8px] font-mono text-slate-500">AUTO-GEN</span>
+            </div>
+            <div id="control-room-feed" class="bg-slate-950/80 rounded-xl p-2.5 border border-cyan-500/20 font-mono text-[9px] text-emerald-400 space-y-1.5 h-32 overflow-y-auto custom-scroll border-l-2 border-l-emerald-500">
+                <div class="text-slate-400">[SYSTEM INIT] NEXGUARD Autonomous Engine Online.</div>
+                <div class="text-slate-400">[MONITORING] Perimeter, Gate, HQ & Utility arrays active.</div>
+            </div>
+        </div>
+
+        <!-- BLACK BOX EVENT LEDGER -->
+        <div class="pt-2 border-t border-white/10">
+            <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[9px] font-mono font-extrabold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                    <i class="fa-solid fa-box-archive text-amber-400"></i>
+                    NEXGUARD Black Box Ledger
+                </span>
+                <span id="blackbox-count" class="text-[8px] font-mono px-1.5 py-0.2 bg-amber-500/20 text-amber-300 rounded border border-amber-500/30">0 RECORDS</span>
+            </div>
+            <div id="blackbox-feed" class="bg-slate-950/80 rounded-xl p-2 border border-amber-500/20 font-mono text-[8.5px] text-slate-300 space-y-1 h-20 overflow-y-auto custom-scroll">
+                <div class="text-slate-500">No events logged yet. System standing by.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RE-OPEN TELEMETRY FLOATING TAB -->
+    <button id="telemetry-reopen-btn" onclick="toggleTelemetryPanel()" class="hidden fixed top-24 right-4 z-20 glass-panel px-3 py-2 rounded-xl text-slate-300 hover:text-emerald-400 text-xs flex items-center gap-2 shadow-2xl border border-emerald-500/30">
+        <i class="fa-solid fa-tower-observation text-emerald-400"></i>
+        <span>Telemetry & Logs</span>
+    </button>
+
+    <!-- FLOATING COMPACT CONTROL DOCK (DRAGGABLE & SLIDEABLE) -->
+    <div id="control-dock" class="fixed bottom-6 left-6 z-30 glass-panel rounded-2xl p-3 shadow-2xl border border-slate-700/80 transition-all duration-300 w-80 md:w-96">
+        <!-- Drag Handle Header -->
+        <div class="flex items-center justify-between pb-2 mb-2 border-b border-white/10 drag-handle" id="dock-drag-header">
+            <div class="flex items-center gap-2 text-slate-300 text-[10px] font-mono font-semibold">
+                <i class="fa-solid fa-grip-dots-vertical text-slate-500"></i>
+                <i class="fa-solid fa-sliders text-emerald-400"></i>
+                <span>NEXGUARD COMMAND CONTROL CENTER</span>
+            </div>
+            <div class="flex items-center gap-1">
+                <button onclick="toggleDock()" class="text-slate-400 hover:text-white p-1 transition-colors text-xs" title="Minimize Dock">
+                    <i id="dock-minimize-icon" class="fa-solid fa-minus"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Dock Content Body -->
+        <div id="dock-body" class="space-y-2.5">
+            <!-- Top Action Controls Row -->
+            <div class="grid grid-cols-4 gap-1.5 text-[10px]">
+                <button id="btn-pause" onclick="togglePauseSimulation()" class="py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-200 rounded-lg border border-slate-700 flex flex-col items-center gap-0.5 transition-all">
+                    <i id="icon-pause" class="fa-solid fa-pause text-xs text-amber-400"></i>
+                    <span id="lbl-pause" class="text-[8px] font-bold">Pause</span>
+                </button>
+
+                <button onclick="toggleDayNight()" class="py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-200 rounded-lg border border-slate-700 flex flex-col items-center gap-0.5 transition-all">
+                    <i id="icon-daynight" class="fa-solid fa-moon text-xs text-cyan-400"></i>
+                    <span class="text-[8px] font-bold">Day / Night</span>
+                </button>
+
+                <button onclick="triggerRadarScan()" class="py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-200 rounded-lg border border-slate-700 flex flex-col items-center gap-0.5 transition-all">
+                    <i class="fa-solid fa-eye-low-vision text-xs text-emerald-400"></i>
+                    <span class="text-[8px] font-bold">Radar Scan</span>
+                </button>
+
+                <button onclick="resetSimulation()" class="py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-200 rounded-lg border border-slate-700 flex flex-col items-center gap-0.5 transition-all">
+                    <i class="fa-solid fa-rotate-left text-xs text-rose-400"></i>
+                    <span class="text-[8px] font-bold">Reset All</span>
+                </button>
+            </div>
+
+            <!-- Target Presets Navigation Pills -->
+            <div>
+                <span class="text-[8px] font-mono uppercase text-slate-400 mb-1 block">3D World Focal Targets:</span>
+                <div class="grid grid-cols-6 gap-1 text-[9px] font-mono">
+                    <button onclick="focusCameraPreset('hq')" class="py-1 bg-slate-900 hover:bg-emerald-500/20 hover:text-emerald-300 rounded border border-slate-700 text-center transition-all">HQ</button>
+                    <button onclick="focusCameraPreset('gate')" class="py-1 bg-slate-900 hover:bg-emerald-500/20 hover:text-emerald-300 rounded border border-slate-700 text-center transition-all">MainGate</button>
+                    <button onclick="focusCameraPreset('north')" class="py-1 bg-slate-900 hover:bg-emerald-500/20 hover:text-emerald-300 rounded border border-slate-700 text-center transition-all">N-Wall</button>
+                    <button onclick="focusCameraPreset('utility')" class="py-1 bg-slate-900 hover:bg-emerald-500/20 hover:text-emerald-300 rounded border border-slate-700 text-center transition-all">Utility</button>
+                    <button onclick="focusCameraPreset('west_jungle')" class="py-1 bg-slate-900 hover:bg-emerald-500/20 hover:text-emerald-300 rounded border border-slate-700 text-center transition-all">Jungle</button>
+                    <button onclick="focusCameraPreset('camps')" class="py-1 bg-slate-900 hover:bg-emerald-500/20 hover:text-emerald-300 rounded border border-slate-700 text-center transition-all">Camps</button>
+                </div>
+            </div>
+
+            <!-- MANUAL TEST BUTTONS (Autonomous Trigger Pipeline) -->
+            <div>
+                <span class="text-[8px] font-mono uppercase text-slate-400 mb-1 block">Manual Autonomous Event Injectors:</span>
+                <div class="grid grid-cols-3 gap-1.5 text-[9px]">
+                    <button onclick="injectAutonomousEvent('intrusion_north')" class="py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-lg flex items-center justify-center gap-1 transition-all font-semibold">
+                        <i class="fa-solid fa-person-walking-arrow-right"></i>
+                        <span>Intrusion Test</span>
+                    </button>
+                    <button onclick="injectAutonomousEvent('fire_utility')" class="py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg flex items-center justify-center gap-1 transition-all font-semibold">
+                        <i class="fa-solid fa-fire-flame-curved"></i>
+                        <span>Fire / Smoke</span>
+                    </button>
+                    <button onclick="injectAutonomousEvent('structural_hq')" class="py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-lg flex items-center justify-center gap-1 transition-all font-semibold">
+                        <i class="fa-solid fa-building-circle-exclamation"></i>
+                        <span>Structural</span>
+                    </button>
+                    <button onclick="injectAutonomousEvent('sensor_fail')" class="py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-lg flex items-center justify-center gap-1 transition-all font-semibold">
+                        <i class="fa-solid fa-wifi-slash"></i>
+                        <span>Sensor Fail</span>
+                    </button>
+                    <button onclick="injectAutonomousEvent('vehicle_crash')" class="py-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 rounded-lg flex items-center justify-center gap-1 transition-all font-semibold">
+                        <i class="fa-solid fa-car-burst"></i>
+                        <span>Vehicle Incident</span>
+                    </button>
+                    <button onclick="injectAutonomousEvent('network_drop')" class="py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-lg flex items-center justify-center gap-1 transition-all font-semibold">
+                        <i class="fa-solid fa-network-wired"></i>
+                        <span>Mesh Drop</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RE-OPEN DOCK FLOATING BUTTON -->
+    <button id="dock-reopen-btn" onclick="toggleDock()" class="hidden fixed bottom-6 left-6 z-30 glass-panel px-3 py-2 rounded-xl text-slate-300 hover:text-emerald-400 text-xs flex items-center gap-2 shadow-2xl border border-emerald-500/30">
+        <i class="fa-solid fa-sliders text-emerald-400"></i>
+        <span>Controls</span>
+    </button>
+
+    <!-- 3D SIMULATION ENGINE SCRIPT -->
+    <script>
+        // Global Simulation State
+        let scene, camera, renderer, controls;
+        let clock = new THREE.Clock();
+        
+        let isPaused = false;
+        let isNight = false;
+        let voiceEnabled = true;
+        let autoLoopEnabled = true;
+        let followCamEnabled = true;
+        let currentActiveEvent = null;
+        let autoLoopTimer = 0;
+        let blackBoxCounter = 1;
+
+        // Lighting Elements
+        let dirLight, ambientLight, hemisphereLight;
+        let nightLightsGroup;
+
+        // Scene Groups
+        let terrainGroup, jungleGroup, baseGroup, fenceGroup, roadGroup;
+        let actorsGroup, vehiclesGroup, sensorsGroup;
+        let smokeParticlesGroup, radarPulseGroup, signalBeamsGroup, eventMarkersGroup;
+
+        // Dynamic Animated Gate & Vehicle References
+        let mainGateBarriers = [];
+        let actors = [];
+        let vehicles = [];
+        let sensorNodes = [];
+        let scanningCameras = [];
+        let criticalSmokeEmitter, fireLight;
+        let intruderActor;
+        let eventMarkerMesh3D = null;
+
+        // Camera Transition Controls
+        let isCamTransitioning = false;
+        let camTargetPos = new THREE.Vector3();
+        let camTargetLookAt = new THREE.Vector3();
+
+        // Named World Locations & Camera Presets
+        const WORLD_ZONES = {
+            base: { name: "Command HQ Base", pos: new THREE.Vector3(80, 75, 80), lookAt: new THREE.Vector3(0, 0, 0) },
+            hq: { name: "Command HQ Building", pos: new THREE.Vector3(25, 20, -12), lookAt: new THREE.Vector3(0, 5, -20), center: new THREE.Vector3(0, 5, -20) },
+            gate: { name: "Main Gate Checkpoint", pos: new THREE.Vector3(-48, 16, 52), lookAt: new THREE.Vector3(-35, 2, 35), center: new THREE.Vector3(-35, 2, 35) },
+            north: { name: "North Perimeter Wall", pos: new THREE.Vector3(-15, 22, -65), lookAt: new THREE.Vector3(-35, 2, -45), center: new THREE.Vector3(-35, 2, -45) },
+            west_jungle: { name: "West Jungle Canopy", pos: new THREE.Vector3(-85, 30, -10), lookAt: new THREE.Vector3(-75, 0, 15), center: new THREE.Vector3(-75, 0, 15) },
+            utility: { name: "Utility & Power Depot", pos: new THREE.Vector3(-42, 18, -35), lookAt: new THREE.Vector3(-22, 3, -25), center: new THREE.Vector3(-22, 3, -25) },
+            camps: { name: "Camp Barracks Alpha", pos: new THREE.Vector3(50, 22, 30), lookAt: new THREE.Vector3(28, 2, 15), center: new THREE.Vector3(28, 2, 15) }
+        };
+
+        // PROCEDURAL CANVAS TEXTURE GENERATORS
+        function createAsphaltTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(0, 0, 512, 512);
+
+            // Add fine road noise
+            for (let i = 0; i < 40000; i++) {
+                const x = Math.random() * 512;
+                const y = Math.random() * 512;
+                const v = Math.floor(Math.random() * 30);
+                ctx.fillStyle = `rgba(${v + 30}, ${v + 40}, ${v + 50}, 0.15)`;
+                ctx.fillRect(x, y, 2, 2);
+            }
+
+            // Yellow double line in center
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.moveTo(252, 0); ctx.lineTo(252, 512);
+            ctx.moveTo(260, 0); ctx.lineTo(260, 512);
+            ctx.stroke();
+
+            // White dashed border lines
+            ctx.strokeStyle = '#f8fafc';
+            ctx.lineWidth = 4;
+            ctx.setLineDash([20, 20]);
+            ctx.beginPath();
+            ctx.moveTo(20, 0); ctx.lineTo(20, 512);
+            ctx.moveTo(492, 0); ctx.lineTo(492, 512);
+            ctx.stroke();
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            return tex;
+        }
+
+        function createConcreteTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(0, 0, 256, 256);
+
+            for (let i = 0; i < 15000; i++) {
+                const x = Math.random() * 256;
+                const y = Math.random() * 256;
+                const c = Math.floor(Math.random() * 40 + 50);
+                ctx.fillStyle = `rgba(${c}, ${c}, ${c + 10}, 0.08)`;
+                ctx.fillRect(x, y, 1, 1);
+            }
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            return tex;
+        }
+
+        function createBuildingFacadeTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(0, 0, 256, 256);
+
+            ctx.fillStyle = '#38bdf8';
+            for (let y = 20; y < 240; y += 40) {
+                for (let x = 20; x < 240; x += 30) {
+                    ctx.fillRect(x, y, 18, 22);
+                }
+            }
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            return tex;
+        }
+
+        function updateLoading(percent, text) {
+            document.getElementById('loading-bar').style.width = percent + '%';
+            document.getElementById('loading-status').innerText = text;
+        }
+
+        function initEngine() {
+            updateLoading(20, 'Initializing WebGL Renderer with ACES Tone Mapping...');
+
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x030712);
+            scene.fog = new THREE.FogExp2(0x030712, 0.0028);
+
+            camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 1, 1000);
+            camera.position.copy(WORLD_ZONES.base.pos);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.1;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.02;
+            controls.minDistance = 8;
+            controls.maxDistance = 260;
+            controls.target.copy(WORLD_ZONES.base.lookAt);
+
+            // Setup Realistic Lighting
+            setupLighting();
+
+            // Build World Components
+            updateLoading(40, 'Generating Terrain, Asphalt Roads & Checkpoint...');
+            createNaturalTerrain();
+            createAsphaltRoadNetwork();
+
+            updateLoading(60, 'Constructing High-Detail Military Complex & Gate...');
+            createMainGateCheckpoint();
+            createPerimeterFenceAndTowers();
+            createMilitaryBaseStructures();
+
+            updateLoading(80, 'Deploying Vehicles, Patrols & Sensor Network...');
+            createJungleCanopy();
+            deployNexguardHardware();
+            createPopulatedActors();
+            createAutonomousTrafficVehicles();
+
+            // FX Setup
+            createFXSystems();
+
+            // Setup Listeners
+            window.addEventListener('resize', onWindowResize);
+            setupDraggableDock();
+
+            updateLoading(100, 'NEXGUARD AI Simulation Engine Ready');
+            setTimeout(() => {
+                const loader = document.getElementById('loading-screen');
+                loader.style.opacity = '0';
+                setTimeout(() => loader.remove(), 700);
+            }, 500);
+
+            speakAnnouncement("NEXGUARD Autonomous System initialized. Multi-sensor matrix online.");
+
+            animate();
+        }
+
+        function setupLighting() {
+            ambientLight = new THREE.AmbientLight(0xdbeafe, 0.65);
+            scene.add(ambientLight);
+
+            hemisphereLight = new THREE.HemisphereLight(0x38bdf8, 0x1e293b, 0.45);
+            scene.add(hemisphereLight);
+
+            dirLight = new THREE.DirectionalLight(0xfffbeb, 1.4);
+            dirLight.position.set(130, 160, 90);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.camera.near = 10;
+            dirLight.shadow.camera.far = 380;
+            const d = 130;
+            dirLight.shadow.camera.left = -d;
+            dirLight.shadow.camera.right = d;
+            dirLight.shadow.camera.top = d;
+            dirLight.shadow.camera.bottom = -d;
+            dirLight.shadow.bias = -0.0003;
+            scene.add(dirLight);
+
+            nightLightsGroup = new THREE.Group();
+            scene.add(nightLightsGroup);
+        }
+
+        function createNaturalTerrain() {
+            terrainGroup = new THREE.Group();
+            
+            const gridWidth = 280;
+            const gridDepth = 280;
+            const geo = new THREE.PlaneGeometry(gridWidth, gridDepth, 110, 110);
+            geo.rotateX(-Math.PI / 2);
+
+            const pos = geo.attributes.position;
+            for (let i = 0; i < pos.count; i++) {
+                const x = pos.getX(i);
+                const z = pos.getZ(i);
+
+                const inBase = (x > -45 && x < 65 && z > -55 && z < 55);
+                if (!inBase) {
+                    const h1 = Math.sin(x * 0.025) * Math.cos(z * 0.025) * 7.5;
+                    const h2 = Math.sin(x * 0.06 + z * 0.04) * 3.0;
+                    pos.setY(i, Math.max(0, h1 + h2));
+                } else {
+                    pos.setY(i, (Math.sin(x * 0.08) + Math.cos(z * 0.08)) * 0.1);
+                }
+            }
+            geo.computeVertexNormals();
+
+            const groundMat = new THREE.MeshStandardMaterial({
+                color: 0x1e3a1e,
+                roughness: 0.95,
+                metalness: 0.05,
+                flatShading: true
+            });
+
+            const ground = new THREE.Mesh(geo, groundMat);
+            ground.receiveShadow = true;
+            terrainGroup.add(ground);
+
+            scene.add(terrainGroup);
+        }
+
+        function createAsphaltRoadNetwork() {
+            roadGroup = new THREE.Group();
+            const asphaltTex = createAsphaltTexture();
+            asphaltTex.repeat.set(1, 10);
+
+            const roadMat = new THREE.MeshStandardMaterial({
+                map: asphaltTex,
+                roughness: 0.8,
+                metalness: 0.2
+            });
+
+            // Main Entrance Road leading through gate into HQ
+            const mainRoadGeo = new THREE.PlaneGeometry(12, 110);
+            mainRoadGeo.rotateX(-Math.PI / 2);
+            const mainRoad = new THREE.Mesh(mainRoadGeo, roadMat);
+            mainRoad.position.set(-35, 0.06, 0);
+            mainRoad.receiveShadow = true;
+            roadGroup.add(mainRoad);
+
+            // HQ Loop / Parking Apron
+            const concTex = createConcreteTexture();
+            concTex.repeat.set(4, 4);
+            const concMat = new THREE.MeshStandardMaterial({ map: concTex, roughness: 0.7 });
+
+            const hqApron = new THREE.Mesh(new THREE.PlaneGeometry(85, 75), concMat);
+            hqApron.rotateX(-Math.PI / 2);
+            hqApron.position.set(10, 0.05, 0);
+            hqApron.receiveShadow = true;
+            roadGroup.add(hqApron);
+
+            // Sidewalk curbs
+            const curbMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.5 });
+            const curbLeft = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 110), curbMat);
+            curbLeft.position.set(-41.2, 0.1, 0);
+            roadGroup.add(curbLeft);
+
+            const curbRight = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 110), curbMat);
+            curbRight.position.set(-28.8, 0.1, 0);
+            roadGroup.add(curbRight);
+
+            scene.add(roadGroup);
+        }
+
+        function createMainGateCheckpoint() {
+            const gateGroup = new THREE.Group();
+            gateGroup.position.set(-35, 0, 35);
+
+            // Concrete Island Canopy
+            const boothMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4, metalness: 0.3 });
+            const glassMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.1, metalness: 0.9, transparent: true, opacity: 0.7 });
+            const yellowStripeMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.5 });
+
+            // Island Divider
+            const island = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.3, 14), yellowStripeMat);
+            island.position.y = 0.15;
+            gateGroup.add(island);
+
+            // Guard Booth
+            const booth = new THREE.Mesh(new THREE.BoxGeometry(3, 3.2, 4.5), boothMat);
+            booth.position.set(0, 1.75, 0);
+            booth.castShadow = true;
+            gateGroup.add(booth);
+
+            // Roof Canopy over check lanes
+            const roof = new THREE.Mesh(new THREE.BoxGeometry(16, 0.6, 12), boothMat);
+            roof.position.set(0, 4.5, 0);
+            roof.castShadow = true;
+            gateGroup.add(roof);
+
+            // Canopy Pillars
+            const pillar1 = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 4.5), boothMat);
+            pillar1.position.set(-6.5, 2.25, 4);
+            gateGroup.add(pillar1);
+
+            const pillar2 = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 4.5), boothMat);
+            pillar2.position.set(6.5, 2.25, 4);
+            gateGroup.add(pillar2);
+
+            // Windows
+            const win1 = new THREE.Mesh(new THREE.BoxGeometry(3.1, 1.2, 2.5), glassMat);
+            win1.position.set(0, 2.1, 0);
+            gateGroup.add(win1);
+
+            // Motorized Gate Barriers (Entry & Exit Lanes)
+            for (let side = -1; side <= 1; side += 2) {
+                if (side === 0) continue;
+                const barrierPivot = new THREE.Group();
+                barrierPivot.position.set(side * 2.2, 1.1, 2.0);
+
+                const baseBox = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.1, 0.5), yellowStripeMat);
+                baseBox.position.y = -0.55;
+                barrierPivot.add(baseBox);
+
+                const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 4.2), new THREE.MeshStandardMaterial({ color: 0xef4444 }));
+                arm.rotation.z = Math.PI / 2;
+                arm.position.x = side * 2.1;
+                barrierPivot.add(arm);
+
+                gateGroup.add(barrierPivot);
+                mainGateBarriers.push({ pivot: barrierPivot, targetAngle: 0, currentAngle: 0 });
+            }
+
+            // Concrete Jersey Barriers around entry
+            for (let j = -1; j <= 1; j += 2) {
+                const jersey = new THREE.Mesh(new THREE.BoxGeometry(1, 1.1, 4), new THREE.MeshStandardMaterial({ color: 0x64748b }));
+                jersey.position.set(j * 7.5, 0.55, 3);
+                gateGroup.add(jersey);
+            }
+
+            scene.add(gateGroup);
+        }
+
+        function createPerimeterFenceAndTowers() {
+            fenceGroup = new THREE.Group();
+            const fenceMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, wireframe: true, roughness: 0.3 });
+            const postMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8, roughness: 0.3 });
+
+            const fenceBoxMinX = -45, fenceBoxMaxX = 65, fenceBoxMinZ = -55, fenceBoxMaxZ = 55;
+
+            // Fence Boundary Segments
+            const fenceMesh = new THREE.Mesh(
+                new THREE.BoxGeometry(fenceBoxMaxX - fenceBoxMinX, 4.2, fenceBoxMaxZ - fenceBoxMinZ),
+                fenceMat
+            );
+            fenceMesh.position.set((fenceBoxMaxX + fenceBoxMinX) / 2, 2.1, (fenceBoxMaxZ + fenceBoxMinZ) / 2);
+            fenceGroup.add(fenceMesh);
+
+            // Perimeter Columns & Concrete Footings
+            for (let x = fenceBoxMinX; x <= fenceBoxMaxX; x += 15) {
+                for (let z of [fenceBoxMinZ, fenceBoxMaxZ]) {
+                    if (x > -42 && x < -28 && z === fenceBoxMaxZ) continue; // Leave opening for Main Gate
+                    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 4.5), postMat);
+                    col.position.set(x, 2.25, z);
+                    fenceGroup.add(col);
+                }
+            }
+
+            // Watchtowers with Rotating Scanning Cameras & Searchlights
+            const corners = [
+                { x: fenceBoxMinX, z: fenceBoxMinZ, name: "Watchtower 01" },
+                { x: fenceBoxMaxX, z: fenceBoxMinZ, name: "Watchtower 02" },
+                { x: fenceBoxMinX, z: fenceBoxMaxZ, name: "Watchtower 03" },
+                { x: fenceBoxMaxX, z: fenceBoxMaxZ, name: "Watchtower 04" }
+            ];
+
+            corners.forEach(c => {
+                const tower = new THREE.Group();
+                tower.position.set(c.x, 0, c.z);
+
+                const legs = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.8, 12, 4), postMat);
+                legs.position.y = 6;
+                tower.add(legs);
+
+                const cabin = new THREE.Mesh(new THREE.BoxGeometry(3.8, 3.2, 3.8), new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 }));
+                cabin.position.y = 13.6;
+                tower.add(cabin);
+
+                const cabinRoof = new THREE.Mesh(new THREE.ConeGeometry(3.5, 1.5, 4), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
+                cabinRoof.position.y = 15.8;
+                cabinRoof.rotation.y = Math.PI / 4;
+                tower.add(cabinRoof);
+
+                // Scanning Spotlight / Camera
+                const camPivot = new THREE.Group();
+                camPivot.position.set(0, 13.5, 0);
+
+                const sLight = new THREE.SpotLight(0x38bdf8, 0, 60, Math.PI / 5, 0.3, 1);
+                sLight.position.set(0, 0, 0);
+                sLight.target.position.set(c.x > 0 ? c.x + 15 : c.x - 15, 0, c.z > 0 ? c.z + 15 : c.z - 15);
+                camPivot.add(sLight);
+                camPivot.add(sLight.target);
+                tower.add(camPivot);
+
+                scanningCameras.push({ pivot: camPivot, baseAngle: 0, speed: 0.008 });
+                fenceGroup.add(tower);
+            });
+
+            scene.add(fenceGroup);
+        }
+
+        function createMilitaryBaseStructures() {
+            baseGroup = new THREE.Group();
+
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.5, metalness: 0.2 });
+            const roofMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.6 });
+            const glassTex = createBuildingFacadeTexture();
+            glassTex.repeat.set(2, 1);
+            const glassMat = new THREE.MeshStandardMaterial({ map: glassTex, roughness: 0.2, metalness: 0.8 });
+
+            // 1. COMMAND HQ BUILDING (Multi-story, modern facade, communications array)
+            const hqGroup = new THREE.Group();
+            hqGroup.position.set(0, 0, -20);
+            
+            const hqMain = new THREE.Mesh(new THREE.BoxGeometry(26, 11, 18), wallMat);
+            hqMain.position.y = 5.5;
+            hqMain.castShadow = true;
+            hqMain.receiveShadow = true;
+            hqGroup.add(hqMain);
+
+            const hqFacade = new THREE.Mesh(new THREE.BoxGeometry(26.2, 8, 18.2), glassMat);
+            hqFacade.position.y = 6.0;
+            hqGroup.add(hqFacade);
+
+            const hqRoof = new THREE.Mesh(new THREE.BoxGeometry(27, 1.2, 19), roofMat);
+            hqRoof.position.y = 11.6;
+            hqGroup.add(hqRoof);
+
+            // Rooftop HVAC & Communications Mast
+            const hvac1 = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 4), new THREE.MeshStandardMaterial({ color: 0x64748b }));
+            hvac1.position.set(-6, 12.8, -2);
+            hqGroup.add(hvac1);
+
+            const commsMast = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.6, 20, 6), new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9 }));
+            commsMast.position.set(8, 21.6, -4);
+            hqGroup.add(commsMast);
+
+            // Flagpole in front of HQ
+            const flagPole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 12), new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9 }));
+            flagPole.position.set(0, 6, 14);
+            hqGroup.add(flagPole);
+
+            baseGroup.add(hqGroup);
+
+            // 2. BARRACKS & CAMPS (Camp Alpha & Bravo)
+            for (let b = 0; b < 2; b++) {
+                const bar = new THREE.Group();
+                bar.position.set(28 + b * 18, 0, 15);
+
+                const barBody = new THREE.Mesh(new THREE.BoxGeometry(14, 5.5, 20), wallMat);
+                barBody.position.y = 2.75;
+                barBody.castShadow = true;
+                bar.add(barBody);
+
+                const barRoof = new THREE.Mesh(new THREE.ConeGeometry(13, 3.5, 4), roofMat);
+                barRoof.position.y = 7.25;
+                barRoof.rotation.y = Math.PI / 4;
+                bar.add(barRoof);
+
+                baseGroup.add(bar);
+            }
+
+            // 3. UTILITY & POWER DEPOT
+            const utilGroup = new THREE.Group();
+            utilGroup.position.set(-22, 0, -25);
+
+            const utilBody = new THREE.Mesh(new THREE.BoxGeometry(16, 7.5, 14), new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.6 }));
+            utilBody.position.y = 3.75;
+            utilBody.castShadow = true;
+            utilGroup.add(utilBody);
+
+            const transformer = new THREE.Mesh(new THREE.BoxGeometry(5, 3.5, 4), new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.4 }));
+            transformer.position.set(10.5, 1.75, 0);
+            utilGroup.add(transformer);
+
+            // Fire Light
+            fireLight = new THREE.PointLight(0xf59e0b, 0, 35);
+            fireLight.position.set(0, 6, 0);
+            utilGroup.add(fireLight);
+
+            utilGroup.name = "UTILITY_BUILDING";
+            baseGroup.add(utilGroup);
+
+            // 4. MAINTENANCE HANGAR & MEDICAL UNIT
+            const hangar = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 22, 16, 1, false, 0, Math.PI), wallMat);
+            hangar.rotation.z = Math.PI / 2;
+            hangar.rotation.y = Math.PI / 2;
+            hangar.position.set(-22, 5, 5);
+            hangar.castShadow = true;
+            baseGroup.add(hangar);
+
+            // Night Streetlights
+            const lightPosts = [ { x: -10, z: -5 }, { x: 15, z: -5 }, { x: -10, z: 20 }, { x: 15, z: 20 }, { x: -35, z: 25 } ];
+            lightPosts.forEach((lp) => {
+                const post = new THREE.Group();
+                post.position.set(lp.x, 0, lp.z);
+                const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 8, 8), new THREE.MeshStandardMaterial({ color: 0x334155 }));
+                pole.position.y = 4;
+                post.add(pole);
+
+                const spot = new THREE.SpotLight(0xfef08a, 0, 40, Math.PI / 4, 0.4, 1);
+                spot.position.set(0, 7.8, 0.3);
+                spot.target.position.set(0, 0, 3);
+                post.add(spot);
+                post.add(spot.target);
+                nightLightsGroup.add(post);
+            });
+
+            scene.add(baseGroup);
+        }
+
+        function deployNexguardHardware() {
+            sensorsGroup = new THREE.Group();
+
+            const nodeLocations = [
+                { id: 'S1', x: -35, z: -45, type: 'PIR + THERMAL + CAM', name: 'North Perimeter Pole 1' },
+                { id: 'S2', x: -22, z: -25, type: 'MQ-2 + AMG8833 + CAM', name: 'Utility Building Hub' },
+                { id: 'S3', x: -75, z: 15, type: 'PIR + LONG-RANGE CAM', name: 'West Jungle Node' },
+                { id: 'S4', x: 0, z: -20, type: 'LORA MESH + HQ HUB', name: 'HQ Command Node' },
+                { id: 'S5', x: 28, z: 15, type: 'PIR + THERMAL', name: 'Camp Alpha Sensor' },
+                { id: 'S6', x: -35, z: 35, type: 'PIR + GATE CAM', name: 'Main Gate Checkpoint' }
+            ];
+
+            nodeLocations.forEach((loc) => {
+                const node = new THREE.Group();
+                node.position.set(loc.x, 0, loc.z);
+
+                const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 4.2, 8), new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8 }));
+                pole.position.y = 2.1;
+                node.add(pole);
+
+                const box = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.8, 0.5), new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3 }));
+                box.position.y = 3.8;
+                node.add(box);
+
+                // Solar panel top
+                const panel = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.05, 0.8), new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.1 }));
+                panel.position.set(0, 4.25, 0);
+                panel.rotation.x = 0.2;
+                node.add(panel);
+
+                const led = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshBasicMaterial({ color: 0x10b981 }));
+                led.position.set(0, 3.8, 0.28);
+                node.add(led);
+
+                node.userData = { id: loc.id, type: loc.type, name: loc.name, led: led, pos: node.position };
+                sensorNodes.push(node);
+                sensorsGroup.add(node);
+            });
+
+            scene.add(sensorsGroup);
+        }
+
+        function createPopulatedActors() {
+            actorsGroup = new THREE.Group();
+            const colors = [0x0284c7, 0x059669, 0x475569, 0x1e293b, 0xd97706];
+
+            for (let i = 0; i < 9; i++) {
+                const human = createHumanMesh(colors[i % colors.length]);
+                const startX = (Math.random() - 0.5) * 45 + 10;
+                const startZ = (Math.random() - 0.5) * 45;
+                human.position.set(startX, 0, startZ);
+
+                human.userData = {
+                    speed: 0.035 + Math.random() * 0.02,
+                    targetX: startX + (Math.random() - 0.5) * 25,
+                    targetZ: startZ + (Math.random() - 0.5) * 25,
+                    isIntruder: false
+                };
+                actors.push(human);
+                actorsGroup.add(human);
+            }
+
+            // Intruder actor (Red Jacket)
+            intruderActor = createHumanMesh(0xef4444);
+            intruderActor.position.set(-85, 0, 20); // Hidden initially in jungle
+            intruderActor.userData = { speed: 0.05, targetX: -85, targetZ: 20, isIntruder: true };
+            actors.push(intruderActor);
+            actorsGroup.add(intruderActor);
+
+            scene.add(actorsGroup);
+        }
+
+        function createHumanMesh(shirtColor) {
+            const group = new THREE.Group();
+            const bodyMat = new THREE.MeshStandardMaterial({ color: shirtColor, roughness: 0.6 });
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0xffdbac, roughness: 0.8 });
+            const pantsMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.9 });
+
+            const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.22, 0.9, 8), bodyMat);
+            torso.position.y = 1.05;
+            torso.castShadow = true;
+            group.add(torso);
+
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 12), skinMat);
+            head.position.y = 1.65;
+            head.castShadow = true;
+            group.add(head);
+
+            const legLeft = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.7, 8), pantsMat);
+            legLeft.position.set(-0.14, 0.35, 0);
+            legLeft.name = "LEG_L";
+            group.add(legLeft);
+
+            const legRight = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.7, 8), pantsMat);
+            legRight.position.set(0.14, 0.35, 0);
+            legRight.name = "LEG_R";
+            group.add(legRight);
+
+            return group;
+        }
+
+        function createAutonomousTrafficVehicles() {
+            vehiclesGroup = new THREE.Group();
+
+            // Vehicle 1: Tactical Security SUV
+            const suv = createRealisticVehicleMesh(0x0f172a, "SUV");
+            suv.position.set(-35, 0, 90); // Approaching from main road outside gate
+            suv.userData = {
+                speed: 0.1,
+                route: [
+                    new THREE.Vector3(-35, 0, 90),
+                    new THREE.Vector3(-35, 0, 42), // Stop before gate barrier
+                    new THREE.Vector3(-35, 0, 0),  // Pass gate into HQ apron
+                    new THREE.Vector3(10, 0, 0),   // Park at HQ apron
+                    new THREE.Vector3(-35, 0, 90)  // Loop back
+                ],
+                routeIdx: 0,
+                waitingAtGate: false,
+                waitTime: 0
+            };
+            vehicles.push(suv);
+            vehiclesGroup.add(suv);
+
+            // Vehicle 2: Utility Pickup Truck
+            const pickup = createRealisticVehicleMesh(0xd97706, "PICKUP");
+            pickup.position.set(15, 0, 10);
+            pickup.userData = {
+                speed: 0.08,
+                route: [
+                    new THREE.Vector3(15, 0, 10),
+                    new THREE.Vector3(-22, 0, -10),
+                    new THREE.Vector3(15, 0, 10)
+                ],
+                routeIdx: 0,
+                waitingAtGate: false,
+                waitTime: 0
+            };
+            vehicles.push(pickup);
+            vehiclesGroup.add(pickup);
+
+            scene.add(vehiclesGroup);
+        }
+
+        function createRealisticVehicleMesh(paintColor, type) {
+            const vehicle = new THREE.Group();
+            const bodyMat = new THREE.MeshStandardMaterial({ color: paintColor, roughness: 0.3, metalness: 0.7 });
+            const glassMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.1, metalness: 0.9, transparent: true, opacity: 0.8 });
+            const tireMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.9 });
+            const rimMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9 });
+            const lightMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+            const tailMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+
+            // Main Car Body Chassis
+            const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.1, 4.8), bodyMat);
+            chassis.position.y = 0.9;
+            chassis.castShadow = true;
+            vehicle.add(chassis);
+
+            // Cabin / Roof
+            const cabinHeight = type === "SUV" ? 1.0 : 0.85;
+            const cabinLen = type === "SUV" ? 3.0 : 2.2;
+            const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.2, cabinHeight, cabinLen), bodyMat);
+            cabin.position.set(0, 1.8, type === "PICKUP" ? -0.4 : -0.2);
+            cabin.castShadow = true;
+            vehicle.add(cabin);
+
+            // Windshield & Windows
+            const glass = new THREE.Mesh(new THREE.BoxGeometry(2.22, cabinHeight * 0.8, cabinLen * 0.8), glassMat);
+            glass.position.copy(cabin.position);
+            vehicle.add(glass);
+
+            // Headlights & Taillights
+            for (let x = -0.9; x <= 0.9; x += 1.8) {
+                const hl = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.25, 0.1), lightMat);
+                hl.position.set(x, 1.0, 2.42);
+                vehicle.add(hl);
+
+                const tl = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.25, 0.1), tailMat);
+                tl.position.set(x, 1.0, -2.42);
+                vehicle.add(tl);
+            }
+
+            // 4 Wheels
+            const wheelPositions = [
+                { x: -1.2, z: 1.5 }, { x: 1.2, z: 1.5 },
+                { x: -1.2, z: -1.5 }, { x: 1.2, z: -1.5 }
+            ];
+
+            vehicle.userData.wheels = [];
+            wheelPositions.forEach(wp => {
+                const wGroup = new THREE.Group();
+                const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.35, 16), tireMat);
+                tire.rotation.z = Math.PI / 2;
+                tire.castShadow = true;
+                wGroup.add(tire);
+
+                const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.36, 12), rimMat);
+                rim.rotation.z = Math.PI / 2;
+                wGroup.add(rim);
+
+                wGroup.position.set(wp.x, 0.48, wp.z);
+                vehicle.add(wGroup);
+                vehicle.userData.wheels.push(wGroup);
+            });
+
+            return vehicle;
+        }
+
+        function createJungleCanopy() {
+            jungleGroup = new THREE.Group();
+
+            const treeTrunkMat = new THREE.MeshStandardMaterial({ color: 0x452811, roughness: 0.9 });
+            const treeFoliageMat1 = new THREE.MeshStandardMaterial({ color: 0x143816, roughness: 0.7 });
+            const treeFoliageMat2 = new THREE.MeshStandardMaterial({ color: 0x234e26, roughness: 0.8 });
+
+            const treeGeoTrunk = new THREE.CylinderGeometry(0.35, 0.7, 6, 7);
+            const treeGeoCanopy = new THREE.ConeGeometry(4.0, 8, 7);
+
+            for (let i = 0; i < 260; i++) {
+                const x = (Math.random() - 0.5) * 260;
+                const z = (Math.random() - 0.5) * 260;
+
+                if (x > -48 && x < 68 && z > -58 && z < 58) continue;
+
+                const tree = new THREE.Group();
+                const trunk = new THREE.Mesh(treeGeoTrunk, treeTrunkMat);
+                trunk.position.y = 3;
+                trunk.castShadow = true;
+                tree.add(trunk);
+
+                const foliage1 = new THREE.Mesh(treeGeoCanopy, Math.random() > 0.5 ? treeFoliageMat1 : treeFoliageMat2);
+                foliage1.position.y = 7;
+                foliage1.castShadow = true;
+                tree.add(foliage1);
+
+                const foliage2 = new THREE.Mesh(treeGeoCanopy, treeFoliageMat1);
+                foliage2.position.y = 9.5;
+                foliage2.scale.set(0.75, 0.75, 0.75);
+                foliage2.castShadow = true;
+                tree.add(foliage2);
+
+                const scale = 0.7 + Math.random() * 0.6;
+                tree.scale.set(scale, scale, scale);
+                tree.position.set(x, 0, z);
+
+                jungleGroup.add(tree);
+            }
+
+            scene.add(jungleGroup);
+        }
+
+        function createFXSystems() {
+            // Smoke Emitter
+            smokeParticlesGroup = new THREE.Group();
+            const particleCount = 45;
+            const pGeo = new THREE.BufferGeometry();
+            const pPos = new Float32Array(particleCount * 3);
+
+            for (let i = 0; i < particleCount; i++) {
+                pPos[i * 3] = -22 + (Math.random() - 0.5) * 3;
+                pPos[i * 3 + 1] = 4 + Math.random() * 6;
+                pPos[i * 3 + 2] = -25 + (Math.random() - 0.5) * 3;
+            }
+
+            pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+            const pMat = new THREE.PointsMaterial({
+                color: 0x64748b,
+                size: 2.5,
+                transparent: true,
+                opacity: 0,
+                depthWrite: false
+            });
+
+            criticalSmokeEmitter = new THREE.Points(pGeo, pMat);
+            smokeParticlesGroup.add(criticalSmokeEmitter);
+            scene.add(smokeParticlesGroup);
+
+            // Radar Scan Ring
+            radarPulseGroup = new THREE.Group();
+            const ringGeo = new THREE.RingGeometry(0.5, 1.2, 32);
+            ringGeo.rotateX(-Math.PI / 2);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0x10b981, side: THREE.DoubleSide, transparent: true, opacity: 0 });
+            const radarRing = new THREE.Mesh(ringGeo, ringMat);
+            radarRing.position.y = 0.2;
+            radarPulseGroup.add(radarRing);
+            radarPulseGroup.userData = { ring: radarRing, active: false, scale: 1 };
+            scene.add(radarPulseGroup);
+
+            // Signal Beams Group
+            signalBeamsGroup = new THREE.Group();
+            scene.add(signalBeamsGroup);
+
+            // 3D Event Target Marker Ring
+            eventMarkersGroup = new THREE.Group();
+            const markerGeo = new THREE.RingGeometry(1.8, 2.5, 32);
+            markerGeo.rotateX(-Math.PI / 2);
+            const markerMat = new THREE.MeshBasicMaterial({ color: 0xef4444, side: THREE.DoubleSide, transparent: true, opacity: 0 });
+            eventMarkerMesh3D = new THREE.Mesh(markerGeo, markerMat);
+            eventMarkerMesh3D.position.set(0, 0.1, 0);
+            eventMarkersGroup.add(eventMarkerMesh3D);
+            scene.add(eventMarkersGroup);
+        }
+
+        // =========================================================
+        //  AUTONOMOUS SENSOR FUSION & EVENT ENGINE
+        // =========================================================
+
+        function injectAutonomousEvent(type) {
+            if (currentActiveEvent) resetSimulation();
+
+            let ev = {};
+            if (type === 'intrusion_north') {
+                ev = {
+                    title: "UNAUTHORIZED INTRUSION DETECTED",
+                    zoneKey: 'north',
+                    zoneName: WORLD_ZONES.north.name,
+                    targetPos: new THREE.Vector3(-35, 0, -45),
+                    sensors: ["PIR Motion", "Optical Camera", "Thermal AMG8833"],
+                    confidence: 94,
+                    level: "CRITICAL",
+                    speech: "Attention. Unauthorized intruder detected at North Perimeter Wall. Verification confirmed by PIR, optical and thermal sensors.",
+                    logDesc: "Unidentified person scaled fence perimeter near Watchtower 01.",
+                    sensorObj: sensorNodes[0]
+                };
+                intruderActor.position.set(-35, 0, -42);
+            } else if (type === 'fire_utility') {
+                ev = {
+                    title: "THERMAL / SMOKE HAZARD",
+                    zoneKey: 'utility',
+                    zoneName: WORLD_ZONES.utility.name,
+                    targetPos: new THREE.Vector3(-22, 0, -25),
+                    sensors: ["MQ-2 Smoke", "Thermal AMG8833", "Optical Camera"],
+                    confidence: 89,
+                    level: "HIGH",
+                    speech: "Warning. Thermal hazard detected at Utility Power Depot. Smoke and thermal sensors active. High temperature anomaly.",
+                    logDesc: "High thermal dissipation and dense smoke particles detected.",
+                    sensorObj: sensorNodes[1]
+                };
+                criticalSmokeEmitter.material.opacity = 0.85;
+                fireLight.intensity = 4.5;
+            } else if (type === 'structural_hq') {
+                ev = {
+                    title: "STRUCTURAL ANOMALY DETECTED",
+                    zoneKey: 'hq',
+                    zoneName: WORLD_ZONES.hq.name,
+                    targetPos: new THREE.Vector3(0, 0, -20),
+                    sensors: ["Piezo Vibration", "Tilt Sensor", "IP Camera"],
+                    confidence: 82,
+                    level: "WARNING",
+                    speech: "Notice. Structural vibration alert registered at Command HQ foundation.",
+                    logDesc: "Low-frequency resonance and structural tilt detected.",
+                    sensorObj: sensorNodes[3]
+                };
+            } else if (type === 'sensor_fail') {
+                ev = {
+                    title: "SENSOR TELEMETRY TIMEOUT",
+                    zoneKey: 'west_jungle',
+                    zoneName: WORLD_ZONES.west_jungle.name,
+                    targetPos: new THREE.Vector3(-75, 0, 15),
+                    sensors: ["LoRa Packet Ping"],
+                    confidence: 100,
+                    level: "WARNING",
+                    speech: "System notice. West Jungle LoRa sensor node heartbeat offline. Rerouting network mesh.",
+                    logDesc: "Node S3 non-responsive. Mesh connection rerouted.",
+                    sensorObj: sensorNodes[2]
+                };
+            } else if (type === 'vehicle_crash') {
+                ev = {
+                    title: "VEHICLE INCIDENT AT GATE",
+                    zoneKey: 'gate',
+                    zoneName: WORLD_ZONES.gate.name,
+                    targetPos: new THREE.Vector3(-35, 0, 35),
+                    sensors: ["Vehicle Accelerometer", "Gate PIR", "Camera"],
+                    confidence: 91,
+                    level: "HIGH",
+                    speech: "Attention. Vehicle incident near Main Gate Checkpoint. Impact registered on gate proximity sensors.",
+                    logDesc: "Vehicle stopped unexpectedly near gate barrier.",
+                    sensorObj: sensorNodes[5]
+                };
+            } else if (type === 'network_drop') {
+                ev = {
+                    title: "LORA MESH PACKET DROP",
+                    zoneKey: 'camps',
+                    zoneName: WORLD_ZONES.camps.name,
+                    targetPos: new THREE.Vector3(28, 0, 15),
+                    sensors: ["Mesh Network Diagnostic"],
+                    confidence: 98,
+                    level: "WARNING",
+                    speech: "Network alert. High latency across Camp Alpha LoRa radio link.",
+                    logDesc: "RF packet collision rate above threshold.",
+                    sensorObj: sensorNodes[4]
+                };
+            }
+
+            currentActiveEvent = ev;
+            runEventSequencePipeline(ev);
+        }
+
+        function runEventSequencePipeline(ev) {
+            if (followCamEnabled) {
+                focusCameraPreset(ev.zoneKey);
+            }
+
+            eventMarkerMesh3D.position.copy(ev.targetPos);
+            eventMarkerMesh3D.position.y = 0.2;
+            eventMarkerMesh3D.material.color.setHex(ev.level === 'CRITICAL' ? 0xef4444 : (ev.level === 'HIGH' ? 0xf59e0b : 0xa855f7));
+            eventMarkerMesh3D.material.opacity = 0.9;
+
+            if (ev.sensorObj) {
+                ev.sensorObj.userData.led.material.color.setHex(ev.level === 'CRITICAL' ? 0xef4444 : 0xf59e0b);
+                spawnSignalBeam(ev.sensorObj.userData.pos, new THREE.Vector3(0, 5, -20));
+            }
+
+            showSensorFusionPopup(ev);
+            speakAnnouncement(ev.speech);
+            addControlRoomFeedLine(`[EVENT] ${ev.title} at ${ev.zoneName}`);
+            addControlRoomFeedLine(`[SENSORS] ${ev.sensors.join(" + ")}`);
+            addControlRoomFeedLine(`[AI FUSION] Confidence ${ev.confidence}%. ${ev.level} status.`);
+
+            setTimeout(() => {
+                showEventAlertPopup(ev);
+            }, 800);
+
+            recordBlackBoxEvent(ev);
+
+            document.getElementById('telemetry-status').innerText = ev.title;
+            document.getElementById('telemetry-status').className = ev.level === 'CRITICAL' ? 'text-rose-400 font-bold animate-pulse' : 'text-amber-400 font-bold';
+            document.getElementById('telemetry-event').innerText = ev.title;
+        }
+
+        function showSensorFusionPopup(ev) {
+            const popup = document.getElementById('sensor-fusion-popup');
+            const statusTag = document.getElementById('fusion-status-tag');
+            const countEl = document.getElementById('fusion-count');
+            const confEl = document.getElementById('fusion-confidence');
+            const checklist = document.getElementById('fusion-checklist');
+
+            popup.classList.remove('hidden');
+            setTimeout(() => {
+                popup.classList.remove('scale-95', 'opacity-0');
+                popup.classList.add('scale-100', 'opacity-100');
+            }, 50);
+
+            statusTag.innerText = "FUSING SENSORS...";
+            countEl.innerText = "0";
+            confEl.innerText = "0%";
+
+            checklist.innerHTML = '';
+            ev.sensors.forEach((sName, idx) => {
+                const item = document.createElement('div');
+                item.className = "flex items-center justify-between p-1.5 rounded bg-slate-900/60 border border-white/5 transition-all text-slate-400";
+                item.id = `fusion-item-${idx}`;
+                item.innerHTML = `
+                    <span class="flex items-center gap-2"><i class="fa-solid fa-microchip text-cyan-400"></i> ${sName}</span>
+                    <span class="status-icon font-bold text-slate-500"><i class="fa-solid fa-circle-notch animate-spin"></i></span>
+                `;
+                checklist.appendChild(item);
+            });
+
+            ev.sensors.forEach((_, idx) => {
+                setTimeout(() => {
+                    const item = document.getElementById(`fusion-item-${idx}`);
+                    if (item) {
+                        item.className = "flex items-center justify-between p-1.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300";
+                        item.querySelector('.status-icon').innerHTML = '<i class="fa-solid fa-check text-emerald-400"></i> VERIFIED';
+                        countEl.innerText = (idx + 1).toString();
+                        confEl.innerText = Math.round(((idx + 1) / ev.sensors.length) * ev.confidence) + '%';
+                    }
+                }, (idx + 1) * 600);
+            });
+
+            setTimeout(() => {
+                statusTag.innerText = "CORRELATED";
+                statusTag.className = "text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+            }, (ev.sensors.length + 1) * 600);
+
+            setTimeout(() => {
+                popup.classList.remove('scale-100', 'opacity-100');
+                popup.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => popup.classList.add('hidden'), 500);
+            }, 7500);
+        }
+
+        function showEventAlertPopup(ev) {
+            const pop = document.getElementById('event-alert-popup');
+            document.getElementById('event-alert-title').innerText = ev.title;
+            document.getElementById('event-alert-location').innerText = ev.zoneName;
+            document.getElementById('event-alert-sensors').innerText = ev.sensors.join(" + ");
+            document.getElementById('event-alert-confidence').innerText = ev.confidence + "%";
+            document.getElementById('event-alert-badge').innerText = ev.level;
+
+            const badge = document.getElementById('event-alert-badge');
+            if (ev.level === 'CRITICAL') {
+                badge.className = "px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30";
+            } else if (ev.level === 'HIGH') {
+                badge.className = "px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30";
+            } else {
+                badge.className = "px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30";
+            }
+
+            pop.classList.remove('hidden');
+            setTimeout(() => {
+                pop.classList.remove('-translate-y-4', 'opacity-0');
+                pop.classList.add('translate-y-0', 'opacity-100');
+            }, 50);
+        }
+
+        function addControlRoomFeedLine(text) {
+            const feed = document.getElementById('control-room-feed');
+            const line = document.createElement('div');
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            line.innerHTML = `<span class="text-slate-500">[${time}]</span> ${text}`;
+            feed.appendChild(line);
+            feed.scrollTop = feed.scrollHeight;
+        }
+
+        function recordBlackBoxEvent(ev) {
+            const feed = document.getElementById('blackbox-feed');
+            const id = `EVENT-${String(blackBoxCounter++).padStart(4, '0')}`;
+            const time = new Date().toLocaleTimeString();
+
+            const item = document.createElement('div');
+            item.className = "p-1.5 rounded bg-slate-900/80 border border-amber-500/20 text-amber-200 text-[8px]";
+            item.innerHTML = `
+                <div class="flex justify-between font-bold">
+                    <span>?? ${id} | ${ev.title}</span>
+                    <span class="text-slate-400">${time}</span>
+                </div>
+                <div class="text-slate-400 mt-0.5">${ev.zoneName} | Sensors: ${ev.sensors.join(', ')}</div>
+            `;
+
+            if (blackBoxCounter === 2) feed.innerHTML = '';
+            feed.prepend(item);
+            document.getElementById('blackbox-count').innerText = `${blackBoxCounter - 1} RECORDS`;
+        }
+
+        function spawnSignalBeam(fromPos, toPos) {
+            const points = [
+                fromPos,
+                new THREE.Vector3((fromPos.x + toPos.x) / 2, 10, (fromPos.z + toPos.z) / 2),
+                toPos
+            ];
+            const curve = new THREE.CatmullRomCurve3(points);
+            const tubeGeo = new THREE.TubeGeometry(curve, 20, 0.18, 8, false);
+            const tubeMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.9 });
+            const tube = new THREE.Mesh(tubeGeo, tubeMat);
+
+            signalBeamsGroup.add(tube);
+
+            let opacity = 0.9;
+            const timer = setInterval(() => {
+                opacity -= 0.05;
+                tubeMat.opacity = opacity;
+                if (opacity <= 0) {
+                    clearInterval(timer);
+                    signalBeamsGroup.remove(tube);
+                }
+            }, 100);
+        }
+
+        function speakAnnouncement(text) {
+            if (!voiceEnabled || !('speechSynthesis' in window)) return;
+            try {
+                window.speechSynthesis.cancel();
+                const utter = new SpeechSynthesisUtterance(text);
+                utter.rate = 1.0;
+                utter.pitch = 0.95;
+                window.speechSynthesis.speak(utter);
+            } catch (e) {}
+        }
+
+        // =========================================================
+        //  INTERACTIVE CONTROLS & UI TOGGLES
+        // =========================================================
+
+        function toggleVoiceOutput() {
+            voiceEnabled = !voiceEnabled;
+            document.getElementById('lbl-voice').innerText = voiceEnabled ? "VOICE: ON" : "VOICE: OFF";
+            document.getElementById('icon-voice').className = voiceEnabled ? "fa-solid fa-volume-high" : "fa-solid fa-volume-xmark text-slate-500";
+            if (!voiceEnabled && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+        }
+
+        function toggleAutoLoop() {
+            autoLoopEnabled = !autoLoopEnabled;
+            document.getElementById('lbl-autoloop').innerText = autoLoopEnabled ? "AUTO EVENTS: ON" : "AUTO EVENTS: OFF";
+        }
+
+        function toggleFollowCam() {
+            followCamEnabled = !followCamEnabled;
+            document.getElementById('lbl-followcam').innerText = followCamEnabled ? "FOLLOW CAM: ON" : "FOLLOW CAM: OFF";
+        }
+
+        function togglePauseSimulation() {
+            isPaused = !isPaused;
+            document.getElementById('lbl-pause').innerText = isPaused ? "Resume" : "Pause";
+            document.getElementById('icon-pause').className = isPaused ? "fa-solid fa-play text-xs text-emerald-400" : "fa-solid fa-pause text-xs text-amber-400";
+        }
+
+        function toggleDayNight() {
+            isNight = !isNight;
+            const bgDay = new THREE.Color(0x030712); // Realistic deep night sky
+            const bgSunset = new THREE.Color(0x38bdf8);
+            
+            scene.background = isNight ? bgDay : bgSunset;
+            scene.fog.color = isNight ? bgDay : bgSunset;
+
+            ambientLight.intensity = isNight ? 0.2 : 0.65;
+            hemisphereLight.intensity = isNight ? 0.15 : 0.45;
+            dirLight.intensity = isNight ? 0.15 : 1.4;
+
+            nightLightsGroup.children.forEach(post => {
+                const spot = post.children.find(c => c.isSpotLight);
+                if (spot) spot.intensity = isNight ? 4.0 : 0;
+            });
+        }
+
+        function focusCameraPreset(presetKey) {
+            const target = WORLD_ZONES[presetKey];
+            if (!target) return;
+
+            camTargetPos.copy(target.pos);
+            camTargetLookAt.copy(target.lookAt);
+            isCamTransitioning = true;
+
+            document.getElementById('telemetry-zone').innerText = target.name;
+        }
+
+        function triggerRadarScan() {
+            radarPulseGroup.userData.active = true;
+            radarPulseGroup.userData.scale = 1;
+            radarPulseGroup.position.set(0, 0, 0);
+        }
+
+        function resetSimulation() {
+            currentActiveEvent = null;
+            criticalSmokeEmitter.material.opacity = 0;
+            fireLight.intensity = 0;
+            eventMarkerMesh3D.material.opacity = 0;
+
+            sensorNodes.forEach(n => n.userData.led.material.color.setHex(0x10b981));
+
+            document.getElementById('telemetry-status').innerText = "NORMAL MONITORING";
+            document.getElementById('telemetry-status').className = "text-emerald-400 font-bold";
+            document.getElementById('telemetry-event').innerText = "None";
+
+            const pop = document.getElementById('event-alert-popup');
+            pop.classList.remove('translate-y-0', 'opacity-100');
+            pop.classList.add('-translate-y-4', 'opacity-0');
+            setTimeout(() => pop.classList.add('hidden'), 300);
+
+            intruderActor.position.set(-85, 0, 20); // Hide back in jungle
+            focusCameraPreset('base');
+            addControlRoomFeedLine("[RESET] Security status restored to normal baseline.");
+        }
+
+        function toggleTelemetryPanel() {
+            const panel = document.getElementById('telemetry-box');
+            const reopenBtn = document.getElementById('telemetry-reopen-btn');
+            
+            if (panel.classList.contains('translate-x-0')) {
+                panel.classList.remove('translate-x-0');
+                panel.classList.add('translate-x-full');
+                setTimeout(() => reopenBtn.classList.remove('hidden'), 300);
+            } else {
+                panel.classList.remove('translate-x-full');
+                panel.classList.add('translate-x-0');
+                reopenBtn.classList.add('hidden');
+            }
+        }
+
+        function toggleDock() {
+            const body = document.getElementById('dock-body');
+            const icon = document.getElementById('dock-minimize-icon');
+            
+            if (body.classList.contains('hidden')) {
+                body.classList.remove('hidden');
+                icon.className = "fa-solid fa-minus";
+            } else {
+                body.classList.add('hidden');
+                icon.className = "fa-solid fa-plus";
+            }
+        }
+
+        function setupDraggableDock() {
+            const dock = document.getElementById('control-dock');
+            const header = document.getElementById('dock-drag-header');
+
+            let isDragging = false;
+            let offsetX = 0, offsetY = 0;
+
+            header.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                offsetX = e.clientX - dock.offsetLeft;
+                offsetY = e.clientY - dock.offsetTop;
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                dock.style.left = (e.clientX - offsetX) + 'px';
+                dock.style.top = (e.clientY - offsetY) + 'px';
+                dock.style.bottom = 'auto';
+            });
+
+            document.addEventListener('mouseup', () => { isDragging = false; });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // =========================================================
+        //  MAIN ANIMATION & PHYSICS LOOP
+        // =========================================================
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+            const elapsed = clock.getElapsedTime();
+
+            // Smooth Camera Interpolation
+            if (isCamTransitioning) {
+                camera.position.lerp(camTargetPos, 0.05);
+                controls.target.lerp(camTargetLookAt, 0.05);
+                if (camera.position.distanceTo(camTargetPos) < 0.5) {
+                    isCamTransitioning = false;
+                }
+            }
+
+            controls.update();
+
+            if (!isPaused) {
+                // Auto Loop Autonomous Event Generation (Every ~45 Seconds)
+                if (autoLoopEnabled) {
+                    autoLoopTimer += delta;
+                    if (autoLoopTimer > 45) {
+                        autoLoopTimer = 0;
+                        const events = ['intrusion_north', 'fire_utility', 'structural_hq', 'vehicle_crash'];
+                        const pick = events[Math.floor(Math.random() * events.length)];
+                        injectAutonomousEvent(pick);
+                    }
+                }
+
+                // Scanning Watchtower Camera Rotation
+                scanningCameras.forEach(sc => {
+                    sc.pivot.rotation.y = Math.sin(elapsed * sc.speed * 10) * 0.8;
+                });
+
+                // Motorized Gate Barrier Animations
+                mainGateBarriers.forEach(gb => {
+                    gb.currentAngle += (gb.targetAngle - gb.currentAngle) * 0.1;
+                    gb.pivot.rotation.z = gb.currentAngle;
+                });
+
+                // Vehicle Traffic System & Checkpoint Behavior
+                vehicles.forEach(v => {
+                    const route = v.userData.route;
+                    const target = route[v.userData.routeIdx];
+                    const pos = v.position;
+
+                    const dx = target.x - pos.x;
+                    const dz = target.z - pos.z;
+                    const dist = Math.sqrt(dx * dx + dz * dz);
+
+                    // Check if near main gate checkpoint
+                    if (dist < 4.0 && v.userData.routeIdx === 1) { // Stopping before barrier
+                        mainGateBarriers.forEach(b => b.targetAngle = -Math.PI / 2.2); // Raise barrier
+                        v.userData.waitTime += delta;
+                        if (v.userData.waitTime > 2.5) { // Wait 2.5s at gate
+                            v.userData.routeIdx = (v.userData.routeIdx + 1) % route.length;
+                            v.userData.waitTime = 0;
+                        }
+                    } else if (dist < 2.0) {
+                        if (v.userData.routeIdx === 2) {
+                            mainGateBarriers.forEach(b => b.targetAngle = 0); // Lower barrier after pass
+                        }
+                        v.userData.routeIdx = (v.userData.routeIdx + 1) % route.length;
+                    } else {
+                        const speed = v.userData.speed;
+                        pos.x += (dx / dist) * speed;
+                        pos.z += (dz / dist) * speed;
+                        v.rotation.y = Math.atan2(dx, dz);
+
+                        // Rotate wheels when driving
+                        if (v.userData.wheels) {
+                            v.userData.wheels.forEach(w => w.children[0].rotation.x += 0.2);
+                        }
+                    }
+                });
+
+                // Move Human Patrol Actors
+                actors.forEach((act, idx) => {
+                    if (act.userData.isIntruder) return;
+
+                    const pos = act.position;
+                    const dx = act.userData.targetX - pos.x;
+                    const dz = act.userData.targetZ - pos.z;
+                    const dist = Math.sqrt(dx * dx + dz * dz);
+
+                    if (dist < 0.8) {
+                        act.userData.targetX = pos.x + (Math.random() - 0.5) * 25;
+                        act.userData.targetZ = pos.z + (Math.random() - 0.5) * 25;
+                    } else {
+                        act.position.x += (dx / dist) * act.userData.speed;
+                        act.position.z += (dz / dist) * act.userData.speed;
+                        act.rotation.y = Math.atan2(dx, dz);
+
+                        const legL = act.getObjectByName("LEG_L");
+                        const legR = act.getObjectByName("LEG_R");
+                        if (legL && legR) {
+                            legL.rotation.x = Math.sin(elapsed * 8 + idx) * 0.45;
+                            legR.rotation.x = -Math.sin(elapsed * 8 + idx) * 0.45;
+                        }
+                    }
+                });
+
+                // Sensor Blink FX
+                sensorNodes.forEach((n, idx) => {
+                    if (n.userData.led && !currentActiveEvent) {
+                        n.userData.led.material.opacity = Math.sin(elapsed * 5 + idx) > 0 ? 1 : 0.3;
+                        n.userData.led.material.transparent = true;
+                    }
+                });
+
+                // Smoke FX Particle Animation
+                if (criticalSmokeEmitter && criticalSmokeEmitter.material.opacity > 0) {
+                    const p = criticalSmokeEmitter.geometry.attributes.position.array;
+                    for (let i = 1; i < p.length; i += 3) {
+                        p[i] += 0.06;
+                        if (p[i] > 14) p[i] = 4.0;
+                    }
+                    criticalSmokeEmitter.geometry.attributes.position.needsUpdate = true;
+                }
+
+                // 3D Event Target Marker Pulsing
+                if (eventMarkerMesh3D && eventMarkerMesh3D.material.opacity > 0) {
+                    eventMarkerMesh3D.rotation.z += 0.025;
+                    const scale = 1 + Math.sin(elapsed * 6) * 0.15;
+                    eventMarkerMesh3D.scale.set(scale, scale, 1);
+                }
+
+                // Radar Pulse Animation
+                if (radarPulseGroup.userData.active) {
+                    const ring = radarPulseGroup.userData.ring;
+                    radarPulseGroup.userData.scale += 0.9;
+                    const scale = radarPulseGroup.userData.scale;
+                    ring.scale.set(scale, scale, 1);
+                    ring.material.opacity = Math.max(0, 1 - scale / 110);
+
+                    if (scale > 110) {
+                        radarPulseGroup.userData.active = false;
+                        ring.material.opacity = 0;
+                    }
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Start Engine on DOM Load
+        document.addEventListener('DOMContentLoaded', initEngine);
+    </script>
+</body>
+</html>
